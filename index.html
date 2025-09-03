@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>영상 안내</title>
+  <style>
+    html,body { margin:0; height:100%; background:#000; }
+    video { width:100vw; height:100vh; object-fit:cover; display:block; }
+    .skip {
+      position:fixed; right:16px; bottom:16px; padding:10px 14px;
+      background:rgba(0,0,0,.6); color:#fff; border-radius:999px; text-decoration:none;
+      font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",Roboto;
+    }
+    .hint {
+      position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+      color:#fff; font:500 14px system-ui; opacity:.7; display:none;
+    }
+  </style>
+</head>
+<body>
+  <video id="v" playsinline webkit-playsinline muted autoplay preload="auto" poster="">
+    <source src="video.mp4" type="video/mp4" />
+    브라우저에서 동영상을 재생할 수 없습니다.
+  </video>
+
+  <a class="skip" id="skip" href="https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001">건너뛰기</a>
+  <div class="hint" id="hint">재생이 안 되면 화면을 한 번 터치해주세요</div>
+
+  <script>
+    const TARGET_URL = "https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001"; 
+    const v = document.getElementById("v");
+    const hint = document.getElementById("hint");
+
+    // 영상 끝나면 자동 이동
+    v.addEventListener("ended", () => { location.href = TARGET_URL; });
+
+    // 안전장치: 8초 후 자동 이동 (영상 길이에 맞춰 조절 가능)
+    setTimeout(() => { location.href = TARGET_URL; }, 8000);
+
+    // 자동재생 안 될 때 안내문 표시
+    const tryPlay = async () => {
+      try { await v.play(); }
+      catch (e) {
+        hint.style.display = "block";
+        window.addEventListener("touchstart", () => v.play(), { once: true });
+        window.addEventListener("click", () => v.play(), { once: true });
+      }
+    };
+    v.addEventListener("canplay", tryPlay);
+
+    // 탭 전환 시 영상 일시정지
+    document.addEventListener("visibilitychange", () => { if (document.hidden) v.pause(); });
+  </script>
+</body>
+</html>
