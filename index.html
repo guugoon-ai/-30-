@@ -6,50 +6,67 @@
   <title>영상 안내</title>
   <style>
     html,body { margin:0; height:100%; background:#000; }
-    video { width:100vw; height:100vh; object-fit:cover; display:block; }
-    .skip {
-      position:fixed; right:16px; bottom:16px; padding:10px 14px;
+    video { width:100vw; height:100vh; object-fit:cover; display:block; background:#000; }
+    .skip { position:fixed; right:16px; bottom:16px; padding:10px 14px;
       background:rgba(0,0,0,.6); color:#fff; border-radius:999px; text-decoration:none;
-      font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",Roboto;
-    }
-    .hint {
-      position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
-      color:#fff; font:500 14px system-ui; opacity:.7; display:none;
-    }
+      font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",Roboto; }
+    .msg { position:fixed; left:50%; top:20px; transform:translateX(-50%); color:#fff;
+      background:rgba(0,0,0,.5); padding:8px 12px; border-radius:8px; font:500 13px system-ui; display:none; }
   </style>
 </head>
 <body>
+  <div class="msg" id="msg"></div>
+
   <video id="v" playsinline webkit-playsinline muted autoplay preload="auto" poster="">
     <source src="video.mp4" type="video/mp4" />
     브라우저에서 동영상을 재생할 수 없습니다.
   </video>
 
-  <a class="skip" id="skip" href="https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001">건너뛰기</a>
-  <div class="hint" id="hint">재생이 안 되면 화면을 한 번 터치해주세요</div>
+  <a class="skip" href="https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001">건너뛰기</a>
 
   <script>
-    const TARGET_URL = "https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001"; 
+    const TARGET_URL = "https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001";
     const v = document.getElementById("v");
-    const hint = document.getElementById("hint");
+    const msg = document.getElementById("msg");
+    let fallbackTimer = null;
 
-    // 영상 끝나면 자동 이동
-    v.addEventListener("ended", () => { location.href = TARGET_URL; });
+    function show(t) {
+      msg.textContent = t;
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+    }
 
-    // 안전장치: 8초 후 자동 이동 (영상 길이에 맞춰 조절 가능)
-    setTimeout(() => { location.href = TARGET_URL; }, 8000);
+    // 재생 가능한 상태가 되면(버퍼 확보) 그때 재생 + 폴백 타이머 시작
+    v.addEventListener("canplay", () => {
+      show("재생 준비 완료");
+      try { v.play(); } catch {}
+      // 영상 길이에 맞춰 8초 → 필요시 조정
+      fallbackTimer = setTimeout(() => { location.href = TARGET_URL; }, 8000);
+    });
 
-    // 자동재생 안 될 때 안내문 표시
+    // 자동재생이 막히는 경우(특히 iOS 절전모드 등) 한 번의 사용자 제스처로 재생
     const tryPlay = async () => {
       try { await v.play(); }
-      catch (e) {
-        hint.style.display = "block";
+      catch (_) {
+        show("재생이 차단됨: 화면을 한 번 터치하세요");
         window.addEventListener("touchstart", () => v.play(), { once: true });
         window.addEventListener("click", () => v.play(), { once: true });
       }
     };
     v.addEventListener("canplay", tryPlay);
 
-    // 탭 전환 시 영상 일시정지
+    // 영상 끝나면 즉시 이동
+    v.addEventListener("ended", () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      location.href = TARGET_URL;
+    });
+
+    // 로딩/재생 오류 시 진단 메시지 표시
+    v.addEventListener("error", () => {
+      show("동영상을 불러오지 못했습니다. 파일명/코덱/경로 확인");
+    });
+
+    // 탭 전환 시 일시정지 (선택)
     document.addEventListener("visibilitychange", () => { if (document.hidden) v.pause(); });
   </script>
 </body>
