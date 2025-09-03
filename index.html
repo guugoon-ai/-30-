@@ -1,73 +1,64 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>영상 안내</title>
-  <style>
-    html,body { margin:0; height:100%; background:#000; }
-    video { width:100vw; height:100vh; object-fit:cover; display:block; background:#000; }
-    .skip { position:fixed; right:16px; bottom:16px; padding:10px 14px;
-      background:rgba(0,0,0,.6); color:#fff; border-radius:999px; text-decoration:none;
-      font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",Roboto; }
-    .msg { position:fixed; left:50%; top:20px; transform:translateX(-50%); color:#fff;
-      background:rgba(0,0,0,.5); padding:8px 12px; border-radius:8px; font:500 13px system-ui; display:none; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>영상 디버그</title>
+<style>
+  html,body { margin:0; height:100%; background:#000; color:#fff; font:14px system-ui; }
+  video { position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; background:#000; }
+  .panel {
+    position:fixed; left:12px; top:12px; right:12px;
+    background:rgba(0,0,0,.5); padding:10px; border-radius:10px;
+  }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button, a { padding:6px 10px; border-radius:8px; border:1px solid #666; background:#111; color:#fff; text-decoration:none; }
+  code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
 </head>
 <body>
-  <div class="msg" id="msg"></div>
-
-  <video id="v" playsinline webkit-playsinline muted autoplay preload="auto" poster="">
+  <video id="v" playsinline webkit-playsinline muted autoplay controls preload="auto">
     <source src="video.mp4" type="video/mp4" />
     브라우저에서 동영상을 재생할 수 없습니다.
   </video>
 
-  <a class="skip" href="https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001">건너뛰기</a>
+  <div class="panel" id="panel">
+    <div class="row">
+      <button id="btnPlay">play()</button>
+      <button id="btnPause">pause()</button>
+      <button id="btnUnmute">unmute</button>
+      <button id="btnMute">mute</button>
+      <a href="https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001" target="_blank">이동 링크 열기</a>
+    </div>
+    <div style="margin-top:8px">
+      <div>readyState: <code id="rs">-</code> / networkState: <code id="ns">-</code> / paused: <code id="pd">-</code> / currentTime: <code id="ct">0</code></div>
+      <div>이벤트: <code id="ev">-</code></div>
+    </div>
+  </div>
 
-  <script>
-    const TARGET_URL = "https://www.sooperang.or.kr/indvz/main.do?hmpgId=FT00001";
-    const v = document.getElementById("v");
-    const msg = document.getElementById("msg");
-    let fallbackTimer = null;
+<script>
+  const v = document.getElementById('v');
+  const rs = document.getElementById('rs');
+  const ns = document.getElementById('ns');
+  const pd = document.getElementById('pd');
+  const ct = document.getElementById('ct');
+  const ev = document.getElementById('ev');
 
-    function show(t) {
-      msg.textContent = t;
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-    }
+  function upd() {
+    rs.textContent = v.readyState;   // 4가 가장 안정(_HAVE_ENOUGH_DATA)
+    ns.textContent = v.networkState; // 1:IDLE 2:LOADING 3:NO_SOURCE
+    pd.textContent = String(v.paused);
+    ct.textContent = v.currentTime.toFixed(2);
+  }
+  ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','pause','waiting','stalled','suspend','ended','error','timeupdate','seeking','seeked'].forEach(e=>{
+    v.addEventListener(e, ()=>{ upd(); ev.textContent = e; });
+  });
+  setInterval(upd, 300);
 
-    // 재생 가능한 상태가 되면(버퍼 확보) 그때 재생 + 폴백 타이머 시작
-    v.addEventListener("canplay", () => {
-      show("재생 준비 완료");
-      try { v.play(); } catch {}
-      // 영상 길이에 맞춰 8초 → 필요시 조정
-      fallbackTimer = setTimeout(() => { location.href = TARGET_URL; }, 8000);
-    });
-
-    // 자동재생이 막히는 경우(특히 iOS 절전모드 등) 한 번의 사용자 제스처로 재생
-    const tryPlay = async () => {
-      try { await v.play(); }
-      catch (_) {
-        show("재생이 차단됨: 화면을 한 번 터치하세요");
-        window.addEventListener("touchstart", () => v.play(), { once: true });
-        window.addEventListener("click", () => v.play(), { once: true });
-      }
-    };
-    v.addEventListener("canplay", tryPlay);
-
-    // 영상 끝나면 즉시 이동
-    v.addEventListener("ended", () => {
-      if (fallbackTimer) clearTimeout(fallbackTimer);
-      location.href = TARGET_URL;
-    });
-
-    // 로딩/재생 오류 시 진단 메시지 표시
-    v.addEventListener("error", () => {
-      show("동영상을 불러오지 못했습니다. 파일명/코덱/경로 확인");
-    });
-
-    // 탭 전환 시 일시정지 (선택)
-    document.addEventListener("visibilitychange", () => { if (document.hidden) v.pause(); });
-  </script>
+  document.getElementById('btnPlay').onclick = ()=> v.play().catch(()=>{});
+  document.getElementById('btnPause').onclick = ()=> v.pause();
+  document.getElementById('btnUnmute').onclick = ()=> { v.muted = false; };
+  document.getElementById('btnMute').onclick = ()=> { v.muted = true; };
+</script>
 </body>
 </html>
